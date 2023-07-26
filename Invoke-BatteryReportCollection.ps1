@@ -16,7 +16,7 @@
    This example shows how to run the script.
 
 .NOTES
-    Version: 1.0
+    Version: 1.1
     Creation Date: 2023-07-25
     Copyright (c) 2023 https://github.com/bentman
     https://github.com/bentman/
@@ -24,6 +24,11 @@
    
     NOTE: As this script is complex and handles many operations, thoroughly test it in a safe environment before using it in a production scenario.
 
+.CHANGE
+   Version 1.0: Initial script
+   Version 1.1: Added function for converting ISO 8601 timspan to HH:MM:SS format
+                Added more error handling and logging
+   
 .LINK
     https://docs.microsoft.com/powershell/scripting/learn/deep-dives/everything-about-powershell-functions?view=powershell-7.1
 #>
