@@ -108,7 +108,6 @@ Try {
     $batteryData.ModernStandbyAtDesignCapacity = ([timespan]::Parse($batteryData.ModernStandbyAtDesignCapacity)).ToString("hh\:mm\:ss")
 
     # Store the information into the WMI class
-    # Store the information into the WMI class
     Set-WmiInstance -Namespace root\cimv2\BatteryReport -Class BatteryReport -Arguments @{
         ComputerName = $env:COMPUTERNAME
         DesignCapacity = $batteryData.DesignCapacity
