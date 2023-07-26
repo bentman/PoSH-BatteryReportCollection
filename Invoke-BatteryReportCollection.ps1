@@ -49,6 +49,10 @@ function ConvertTo-StandardTimeFormat {
         # ISO 8601 duration passed as a string
         [Parameter(Mandatory=$true)][string]$iso8601Duration
     )
+    # Return a default value for empty input
+    if ([string]::IsNullOrEmpty($iso8601Duration)) {
+        return "00:00:00"
+    }
     # Regular Expression pattern
     $match = [Regex]::Match($iso8601Duration, 'PT((?<hours>\d+)H)?((?<minutes>\d+)M)?((?<seconds>\d+)S)?')
     # Regular Expression matching
@@ -135,7 +139,7 @@ Try {
     $batteryData.ActiveRuntimeAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntimeAtDesignCapacity
     $batteryData.ModernStandby = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandby
     $batteryData.ModernStandbyAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandbyAtDesignCapacity
-    
+
     # Store the information into the WMI class
     Set-WmiInstance -Namespace root\cimv2\BatteryReport -Class BatteryReport -Arguments @{
         ComputerName = $env:COMPUTERNAME
