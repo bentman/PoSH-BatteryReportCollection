@@ -22,6 +22,8 @@
     https://github.com/bentman/
     Requires: PowerShell V3+. Needs administrative privileges.
    
+    NOTE: As this script is complex and handles many operations, thoroughly test it in a safe environment before using it in a production scenario.
+
 .LINK
     https://docs.microsoft.com/powershell/scripting/learn/deep-dives/everything-about-powershell-functions?view=powershell-7.1
 #>
@@ -40,6 +42,24 @@ $transcriptPath = Join-Path $reportFolderPath "BatteryReportCollection.log"
 $namespacePath = "root\cimv2\BatteryReport"
 $className = "BatteryReport"
 
+############################### FUNCTIONS ###############################
+
+function ConvertTo-StandardTimeFormat {
+    param(
+        # ISO 8601 duration passed as a string
+        [Parameter(Mandatory=$true)][string]$iso8601Duration
+    )
+    # Regular Expression pattern
+    $match = [Regex]::Match($iso8601Duration, 'PT((?<hours>\d+)H)?((?<minutes>\d+)M)?((?<seconds>\d+)S)?')
+    # Regular Expression matching
+    $hours = [int]$match.Groups['hours'].Value
+    $minutes = [int]$match.Groups['minutes'].Value
+    $seconds = [int]$match.Groups['seconds'].Value
+    # Convert ISO 8601 timespan to standard "HH:MM:SS" format
+    $timespan = New-TimeSpan -Hours $hours -Minutes $minutes -Seconds $seconds
+    return $timespan.ToString("hh\:mm\:ss")
+}
+
 ############################### EXECUTION ###############################
 
 # Create output folder if not exist
@@ -50,9 +70,19 @@ if (!(Test-Path -Path $reportFolderPath)) {
 # Start PowerShell Transcript
 Start-Transcript -Path $transcriptPath -Force
 
+# Check if a battery is present in the system
+$batteryPresent = Get-CimInstance -ClassName Win32_Battery
+if (!$batteryPresent) {
+    # If a battery is not found, log an error and exit the script
+    Write-Host "Error: No battery detected on this system." -ForegroundColor Red
+    Stop-Transcript
+    Exit
+}
+
 # Script execution wrapped in a Try/Catch
 Try { 
-    Try { # Create WMI class if not exists
+    Try { # Create WMI class if not exist
+        # Using 'Get-WmiObject' for compatibility with "New-Object"
         $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $className}
         if (!$class) {
             $class = New-Object System.Management.ManagementClass("$namespacePath", [string]::Empty, $null)
@@ -69,8 +99,7 @@ Try {
             $class.Properties.Add("ModernStandbyAtDesignCapacity", [System.Management.CimType]::String, $false) | Out-Null
             $class.Put()
         }
-    }
-    Catch {
+    } Catch {
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
         Stop-Transcript
         Exit
@@ -101,12 +130,12 @@ Try {
         ModernStandbyAtDesignCapacity = $runtimeEstimates.FullCharge.ModernStandbyAtDesignCapacity
     }
 
-    # Convert ActiveRuntime from PT,H,M,S format to HH:MM:SS
-    $batteryData.ActiveRuntime = ([timespan]::Parse($batteryData.ActiveRuntime)).ToString("hh\:mm\:ss")
-    $batteryData.ActiveRuntimeAtDesignCapacity = ([timespan]::Parse($batteryData.ActiveRuntimeAtDesignCapacity)).ToString("hh\:mm\:ss")
-    $batteryData.ModernStandby = ([timespan]::Parse($batteryData.ModernStandby)).ToString("hh\:mm\:ss")
-    $batteryData.ModernStandbyAtDesignCapacity = ([timespan]::Parse($batteryData.ModernStandbyAtDesignCapacity)).ToString("hh\:mm\:ss")
-
+    # Convert ActiveRuntime from ISO 8601 duration format to HH:MM:SS
+    $batteryData.ActiveRuntime = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntime
+    $batteryData.ActiveRuntimeAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntimeAtDesignCapacity
+    $batteryData.ModernStandby = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandby
+    $batteryData.ModernStandbyAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandbyAtDesignCapacity
+    
     # Store the information into the WMI class
     Set-WmiInstance -Namespace root\cimv2\BatteryReport -Class BatteryReport -Arguments @{
         ComputerName = $env:COMPUTERNAME
@@ -118,6 +147,25 @@ Try {
         ModernStandby = $batteryData.ModernStandby
         ModernStandbyAtDesignCapacity = $batteryData.ModernStandbyAtDesignCapacity
     }
+
+    # Get instances of the new BatteryReport CIM class for logging
+    $instances = Get-CimInstance -Namespace $namespacePath -ClassName $className
+
+    # Loop through each instance and log the properties
+    Write-Host "`nNew Class Name: $className"
+    foreach ($instance in $instances) {
+        Write-Host "" # empty line for readability
+        Write-Host "    ComputerName: $($instance.ComputerName)"
+        Write-Host "    DesignCapacity: $($instance.DesignCapacity)"
+        Write-Host "    FullChargeCapacity: $($instance.FullChargeCapacity)"
+        Write-Host "    CycleCount: $($instance.CycleCount)"
+        Write-Host "    ActiveRuntime: $($instance.ActiveRuntime)"
+        Write-Host "    ActiveRuntimeAtDesignCapacity: $($instance.ActiveRuntimeAtDesignCapacity)"
+        Write-Host "    ModernStandby: $($instance.ModernStandby)"
+        Write-Host "    ModernStandbyAtDesignCapacity: $($instance.ModernStandbyAtDesignCapacity)"
+        Write-Host "" # empty line for readability
+    }
+
 } Catch {
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 } Finally {

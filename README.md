@@ -1,10 +1,10 @@
 # SCCM Battery Health Report Collection and Reporting
 
-This repository includes the `Invoke-BatteryReportCollection.ps1` script, which generates battery health reports for Windows computers, stores them as a new WMI class, and extends SCCM's hardware inventory to include this new data. Additionally, it provides SQL queries for generating reports in SCCM. 
+This repository includes the `Invoke-BatteryReportCollection.ps1` script, which generates battery health reports for Windows computers, stores them in a newly created WMI class, and extends SCCM's hardware inventory to include this new data. Additionally, it provides SQL queries to generate reports in SCCM.
 
 ## How to Implement
 
-Follow the steps below to implement this solution:
+Follow these steps below to implement this solution:
 
 1. Download the `Invoke-BatteryReportCollection.ps1` script from this repository and customize it according to your SCCM environment's needs.
 
@@ -42,23 +42,29 @@ The `batteryReport.sql` script queries the SCCM database for a list of all machi
 
 ### Aggregate Computer Models
 
-The `aggregateModels.sql` script provides a count of all computer models that have a battery report.
+The `aggregateModels.sql` script provides a count of all computer models that have a battery report with aggragate data averaged accross the model sample.
+
+## Function: ConvertTo-StandardTimeFormat
+
+The `ConvertTo-StandardTimeFormat` function is an integral part of the script, converting ISO 8601 duration format into a more readable "HH:MM:SS" format.
+
+### Parameters
+
+- `iso8601Duration`: This is the ISO 8601 duration format string that you want to convert into the "HH:MM:SS" format.
+
+### How It Works
+
+The function employs regular expressions to extract hours, minutes, and seconds from the ISO 8601 duration string. Subsequently, it creates a new `TimeSpan` object with these values. Lastly, the function converts this `TimeSpan` into a string with the "HH:MM:SS" format and returns it.
+
+This function primarily aids in the conversion of the Active Runtime and Modern Standby time values obtained from the battery report, making the data more accessible and easier to interpret when stored in the WMI class.
 
 ## Contributions
 
-Contributions are welcome. Please open an issue or submit a pull request.
+Contributions are welcome. Please open an issue or submit a pull request if you have any suggestions, questions, or would like to contribute to the project.
 
 ### GNU General Public License
-This script is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+This script is licensed under the GNU General Public License. You can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License or any later version. 
 
-This script is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+The script is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this script.  If not, see <https://www.gnu.org/licenses/>.
-
+You should have received a copy of the GNU General Public License along with this script. If not, see <https://www.gnu.org/licenses/>.
