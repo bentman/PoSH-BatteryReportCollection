@@ -78,6 +78,8 @@ Here's an example of how to use the `New-WmiClass` function:
 
 ```powershell
 New-WmiClass -namespacePath "root\cimv2\BatteryReport" -newClassName "BatteryReport"
+```
+In this example, the function will create a new class named "BatteryReport" under the "root\cimv2\BatteryReport" namespace. If the namespace does not exist, it will be created.
 
 ## Function: ConvertTo-StandardTimeFormat
 
