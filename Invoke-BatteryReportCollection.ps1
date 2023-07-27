@@ -24,6 +24,7 @@
    Version 1.1: Added function for converting ISO 8601 timspan to HH:MM:SS format
                 Added more error handling and logging
    Version 1.2: Corrected double-negative logic & created function 'New-WmiClass'
+   Version 1.3: Corrected $newClassName 'New-WmiClass'
 .LINK
     https://docs.microsoft.com/powershell/scripting/learn/deep-dives/everything-about-powershell-functions?view=powershell-7.1
 #>
@@ -60,7 +61,7 @@ function New-WmiClass {
     $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $newClassName}
     if (!$class) {
         $class = New-Object System.Management.ManagementClass("$namespacePath", [string]::Empty, $null)
-        $class["__CLASS"] = $className
+        $class["__CLASS"] = $newClassName
         $class.Qualifiers.Add("Static", $true) | Out-Null
         $class.Properties.Add("ComputerName", [System.Management.CimType]::String, $false) | Out-Null
         $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
