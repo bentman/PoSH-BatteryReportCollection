@@ -44,6 +44,41 @@ The `batteryReport.sql` script queries the SCCM database for a list of all machi
 
 The `aggregateModels.sql` script provides a count of all computer models that have a battery report with aggragate data averaged accross the model sample.
 
+# Function: New-WmiClass
+
+This PowerShell function is used to create a new WMI (Windows Management Instrumentation) class in the namespace provided. 
+
+## Parameters
+
+The function takes two mandatory parameters:
+
+- `namespacePath`: A string indicating the WMI namespace path where the new class will be created.
+- `newClassName`: The name of the new class to be created.
+
+## How It Works
+
+The function first checks if the namespace provided exists. If not, it creates a new namespace using the provided name. Then, it checks if a class with the provided name already exists in the namespace. If not, it creates a new WMI class.
+
+The new class has the following properties:
+
+- `ComputerName`: A string property that acts as a key.
+- `DesignCapacity`: A UInt32 property.
+- `FullChargeCapacity`: A UInt32 property.
+- `CycleCount`: A UInt32 property.
+- `ActiveRuntime`: A string property.
+- `ActiveRuntimeAtDesignCapacity`: A string property.
+- `ModernStandby`: A string property.
+- `ModernStandbyAtDesignCapacity`: A string property.
+
+All these properties are not nullable, meaning they must always have a value.
+
+## Example Usage
+
+Here's an example of how to use the `New-WmiClass` function:
+
+```powershell
+New-WmiClass -namespacePath "root\cimv2\BatteryReport" -newClassName "BatteryReport"
+
 ## Function: ConvertTo-StandardTimeFormat
 
 The `ConvertTo-StandardTimeFormat` function is an integral part of the script, converting ISO 8601 duration format into a more readable "HH:MM:SS" format.
