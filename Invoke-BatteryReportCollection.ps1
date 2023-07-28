@@ -143,8 +143,8 @@ try {
         'designCapacity',
         'cycleCount',
         'activeTimeAcValue',
-        'modernStandby'
-        'activeRuntime',
+        'modernStandby',
+        'activeRuntime'
     )
     # Loop through each instance and log the properties
     foreach ($logInstance in $logInstances) {
