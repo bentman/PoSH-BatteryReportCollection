@@ -123,7 +123,9 @@ try {
         foreach ($prop in $classProperties.Keys) {
             Add-Member -InputObject $newInstance -NotePropertyName $prop -NotePropertyValue $classProperties[$prop]
         }
-        New-CimInstance -Namespace $namespacePath -ClassName $newClassName -Property $newInstance.PSObject.Properties
+        $hashProps = @{}
+        $newInstance.PSObject.Properties | ForEach-Object { $hashProps[$_.Name] = $_.Value }
+        New-CimInstance -Namespace $namespacePath -ClassName $newClassName -Property $hashProps
     } else {
         # Update existing instance
         foreach ($prop in $classProperties.Keys) {
