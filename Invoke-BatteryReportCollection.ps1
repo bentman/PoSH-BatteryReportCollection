@@ -139,12 +139,13 @@ if ($null -eq $instance) {
     Write-Host "`nNew Class: $newClassName"
     # Define a list of properties to display
     $propertiesToDisplay = @(
-        'ComputerName', 
-        'DesignCapacity', 
-        'FullChargeCapacity', 
-        'CycleCount', 
-        'ActiveRuntime', 
-        'ModernStandby' 
+        fullChargeCapacity,
+        designCapacity,
+        cycleCount,
+        activeTimeAcValue,
+        activeRuntime,
+        modernStandbyDuration,
+        modernStandby
     )
     # Loop through each instance and log the properties
     foreach ($logInstance in $logInstances) {
