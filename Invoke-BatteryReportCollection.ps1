@@ -144,9 +144,7 @@ if ($null -eq $instance) {
         'FullChargeCapacity', 
         'CycleCount', 
         'ActiveRuntime', 
-        'ActiveRuntimeAtDesignCapacity', 
         'ModernStandby', 
-        'ModernStandbyAtDesignCapacity'
     )
     # Loop through each instance and log the properties
     foreach ($logInstance in $logInstances) {
