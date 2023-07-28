@@ -1,35 +1,30 @@
 <#
 .SYNOPSIS
-   Invoke-BatteryReportCollection is a script to collect 'powercfg.exe /batteryreport' information and store it in a custom WMI class.
+    Invoke-BatteryReportCollection is a script to collect 'powercfg.exe /batteryreport' information and store it in a custom WMI class.
 .DESCRIPTION
-   The script creates a custom WMI namespace and class if they don't exist. 
-   It then runs 'powercfg /batteryreport' command to generate a battery report in both XML and HTML format. 
-   The XML report is parsed to extract battery information which is then stored in the custom WMI class. 
-   The reports are saved in the 'C:\temp\batteryreport' directory, and are overwritten each time the script runs.
+    The script creates a custom WMI namespace and class if they don't exist. 
+    It then runs 'powercfg /batteryreport' command to generate a battery report in both XML and HTML format. 
+    The XML report is parsed to extract battery information which is then stored in the custom WMI class. 
+    The reports are saved in the 'C:\temp\batteryreport' directory, and are overwritten each time the script runs.
+    Being a complex script that handles many operations, thoroughly test it in a safe environment before using it in a production scenario!
 .PARAMETER None
-   This script does not accept any parameters.
+    This script does not accept any parameters.
 .EXAMPLE
-   PS C:\> .\Invoke-BatteryReportCollection.ps1
-   This example shows how to run the script.
+    This example shows how to run the script.
+        PS C:\> .\Invoke-BatteryReportCollection.ps1
 .NOTES
-    Version: 1.2
-    Creation Date: 2023-07-25
+    Version 1.4: Release
+    Release Date: 2023-07-28
+    Requires: PowerShell V3+. Requires elevated Admin privileges.
+    https://github.com/bentman/PoSH-BatteryReportCollection
     Copyright (c) 2023 https://github.com/bentman
-    https://github.com/bentman/
-    Requires: PowerShell V3+. Needs administrative privileges.
-   
-    NOTE: As this script is complex and handles many operations, thoroughly test it in a safe environment before using it in a production scenario.
-.CHANGE
-   Version 1.0: Initial script
-   Version 1.1: Added function for converting ISO 8601 timspan to HH:MM:SS format
-                Added more error handling and logging
-   Version 1.2: Corrected double-negative logic & created function 'New-WmiClass'
-   Version 1.3: Corrected $newClassName 'New-WmiClass'
 .LINK
-    https://docs.microsoft.com/powershell/scripting/learn/deep-dives/everything-about-powershell-functions?view=powershell-7.1
+    https://learn.microsoft.com/en-us/powershell/
 #>
 
 ############################### VARIABLES ###############################
+# Script Version
+$scriptVer = "1.4"
 # Define new Namespace name
 $newClassName = "BatteryReport"
 # Define Report folder root
@@ -46,7 +41,7 @@ $namespacePath = "root\cimv2\$newClassName"
 
 ############################### FUNCTIONS ###############################
 function New-WmiClass {
-    param (
+    [CmdletBinding()] param (
         [Parameter(Mandatory=$true)][string]$namespacePath,
         [Parameter(Mandatory=$true)][string]$newClassName
     )
@@ -57,11 +52,10 @@ function New-WmiClass {
         $namespace.Name = "$newClassName"
         $namespace.Put() | Out-Null
     }
-    # Check if the Classes exists, if not create it
+    # Check if the Class exists, if not create it
     $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $newClassName}
     if (!$class) {
-        $class = New-Object System.Management.ManagementClass("$namespacePath", [string]::Empty, $null)
-        $class["__CLASS"] = $newClassName
+        $class = New-Object System.Management.ManagementClass($namespacePath, $newClassName, $null)
         $class.Qualifiers.Add("Static", $true) | Out-Null
         $class.Properties.Add("ComputerName", [System.Management.CimType]::String, $false) | Out-Null
         $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
@@ -75,6 +69,7 @@ function New-WmiClass {
         $class.Put()
     }
 }
+
 function ConvertTo-StandardTimeFormat { # Convert ISO 8601 to "HH:MM:SS"
     param(
         # ISO 8601 duration passed as a string
@@ -103,11 +98,14 @@ if (!(Test-Path -Path $reportFolderPath)) {
 }
 # Start PowerShell Transcript
 Start-Transcript -Path $transcriptPath -Force
+Write-Host "" # Empty line for transcript readability
+Write-Host "Script Version = $scriptVer"
+(Get-PSCallStack).InvocationInfo.MyCommand.Name
 # Check if a battery is present in the system
 $batteryPresent = Get-CimInstance -ClassName Win32_Battery
 if (!$batteryPresent) {
     # If a battery is not found, log an error and exit the script
-    Write-Host "Error: No battery detected on this system." -ForegroundColor Red
+    Write-Host "Error: No battery detected on this system - Skipping operations." -ForegroundColor Red
     Stop-Transcript
     Exit
 }
@@ -115,7 +113,7 @@ if (!$batteryPresent) {
 Try { 
     Try {
     # Create WMI class
-    New-WmiClass -namespacePath $namespacePath -className $newClassName
+    New-WmiClass -namespacePath $namespacePath -newClassName $newClassName
     } Catch {
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
         Stop-Transcript
@@ -142,39 +140,63 @@ Try {
         ModernStandbyAtDesignCapacity = $runtimeEstimates.FullCharge.ModernStandbyAtDesignCapacity
     }
     # Convert ActiveRuntime from ISO 8601 duration format to HH:MM:SS
-    $batteryData.ActiveRuntime = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntime
-    $batteryData.ActiveRuntimeAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntimeAtDesignCapacity
-    $batteryData.ModernStandby = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandby
-    $batteryData.ModernStandbyAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandbyAtDesignCapacity
-    # Store the information into the WMI class
-    Set-WmiInstance -Namespace $namespacePath -Class $newClassName -Arguments @{
-        ComputerName = $env:COMPUTERNAME
-        DesignCapacity = $batteryData.DesignCapacity
-        FullChargeCapacity = $batteryData.FullChargeCapacity
-        CycleCount = $batteryData.CycleCount
-        ActiveRuntime = $batteryData.ActiveRuntime
-        ActiveRuntimeAtDesignCapacity = $batteryData.ActiveRuntimeAtDesignCapacity
-        ModernStandby = $batteryData.ModernStandby
-        ModernStandbyAtDesignCapacity = $batteryData.ModernStandbyAtDesignCapacity
+    if ($batteryData.ActiveRuntime) {
+        $batteryData.ActiveRuntime = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntime
     }
-    # Get instances of the new BatteryReport CIM class for logging
-    $instances = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName
-    # Loop through each instance and log the properties
-    Write-Host "`nNew Class Name: $newClassName"
-    foreach ($instance in $instances) {
-        Write-Host "" # empty line for readability
-        Write-Host "    ComputerName: $($instance.ComputerName)"
-        Write-Host "    DesignCapacity: $($instance.DesignCapacity)"
-        Write-Host "    FullChargeCapacity: $($instance.FullChargeCapacity)"
-        Write-Host "    CycleCount: $($instance.CycleCount)"
-        Write-Host "    ActiveRuntime: $($instance.ActiveRuntime)"
-        Write-Host "    ActiveRuntimeAtDesignCapacity: $($instance.ActiveRuntimeAtDesignCapacity)"
-        Write-Host "    ModernStandby: $($instance.ModernStandby)"
-        Write-Host "    ModernStandbyAtDesignCapacity: $($instance.ModernStandbyAtDesignCapacity)"
-        Write-Host "" # empty line for readability
+    if ($batteryData.ActiveRuntimeAtDesignCapacity) {
+        $batteryData.ActiveRuntimeAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntimeAtDesignCapacity
+    }
+    if ($batteryData.ModernStandby) {
+        $batteryData.ModernStandby = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandby
+    }
+    if ($batteryData.ModernStandbyAtDesignCapacity) {
+        $batteryData.ModernStandbyAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandbyAtDesignCapacity
+    }
+    # Check if an instance with the same ComputerName already exists
+    $instance = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName |
+        Where-Object { $_.ComputerName -eq $env:COMPUTERNAME }
+    if ($null -ne $instance) {
+        # Instance exists, update it
+        $instance | Set-CimInstance -Property @{
+            DesignCapacity = $batteryData.DesignCapacity
+            FullChargeCapacity = $batteryData.FullChargeCapacity
+            CycleCount = $batteryData.CycleCount
+            ActiveRuntime = $batteryData.ActiveRuntime
+            ActiveRuntimeAtDesignCapacity = $batteryData.ActiveRuntimeAtDesignCapacity
+            ModernStandby = $batteryData.ModernStandby
+            ModernStandbyAtDesignCapacity = $batteryData.ModernStandbyAtDesignCapacity
+        }
+    } else {
+        # Instance does not exist, create it
+        Set-WmiInstance -Namespace $namespacePath -Class $newClassName -Arguments @{
+            ComputerName = $env:COMPUTERNAME
+            DesignCapacity = $batteryData.DesignCapacity
+            FullChargeCapacity = $batteryData.FullChargeCapacity
+            CycleCount = $batteryData.CycleCount
+            ActiveRuntime = $batteryData.ActiveRuntime
+            ActiveRuntimeAtDesignCapacity = $batteryData.ActiveRuntimeAtDesignCapacity
+            ModernStandby = $batteryData.ModernStandby
+            ModernStandbyAtDesignCapacity = $batteryData.ModernStandbyAtDesignCapacity
+        }
     }
 } Catch {
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 } Finally {
+    # Get instances of the new BatteryReport CIM class for logging
+    $logInstances = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName
+    Write-Host "`nNew Class: $newClassName"
+    # Loop through each instance and log the properties
+    foreach ($logInstance in $logInstances) {
+        Write-Host "" # Empty line for transcript readability
+        Write-Host "    ComputerName: $($logInstance.ComputerName)"
+        Write-Host "    DesignCapacity: $($logInstance.DesignCapacity)"
+        Write-Host "    FullChargeCapacity: $($logInstance.FullChargeCapacity)"
+        Write-Host "    CycleCount: $($logInstance.CycleCount)"
+        Write-Host "    ActiveRuntime: $($logInstance.ActiveRuntime)"
+        Write-Host "    ActiveRuntimeAtDesignCapacity: $($logInstance.ActiveRuntimeAtDesignCapacity)"
+        Write-Host "    ModernStandby: $($logInstance.ModernStandby)"
+        Write-Host "    ModernStandbyAtDesignCapacity: $($logInstance.ModernStandbyAtDesignCapacity)"
+        Write-Host "" # Empty line for transcript readability
+    }
     Stop-Transcript
 }
