@@ -45,6 +45,7 @@ function New-CimClass {
         [Parameter(Mandatory=$true)][string]$namespacePath,
         [Parameter(Mandatory=$true)][string]$newClassName
     )
+
     try {
         # Check if the Namespace exists, if not create it
         $namespace = Get-CimInstance -Namespace "root\cimv2" -ClassName "__Namespace" -Filter "Name='$newClassName'"
@@ -52,9 +53,12 @@ function New-CimClass {
             Write-Output "Creating namespace: $newClassName"
             $namespace = New-CimInstance -Namespace "root\cimv2" -ClassName "__Namespace" -Property @{Name="$newClassName"} -PassThru
         }
-        # Check if the Class exists, if not create it
+
+        # Try to get the class
         $class = Get-CimClass -Namespace $namespacePath -ClassName $newClassName -ErrorAction SilentlyContinue
+
         if (!$class) {
+            # If the class does not exist, create it
             Write-Output "Creating class: $newClassName"
             $class = New-Object System.Management.ManagementClass("\\.\$namespacePath", [string]::Empty, $null)
             $class["__CLASS"] = "$newClassName"
@@ -72,6 +76,8 @@ function New-CimClass {
             $class.Properties.Add("ModernStandbyAtDesignCapacity", [System.Management.CimType]::String, $false) | Out-Null
             $class.Put()
             Write-Output "Class $newClassName has been successfully created in the namespace $namespacePath."
+        } else {
+            Write-Output "Class $newClassName already exists in the namespace $namespacePath, skipping creation."
         }
     }
     catch {
@@ -195,6 +201,8 @@ try {
     }
 } catch {
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Stack Trace: $($_.Exception.StackTrace)" -ForegroundColor Red
+    Write-Host "Command Origin: $($_.InvocationInfo)" -ForegroundColor Red
 } finally {
     # Get instances of the new BatteryReport CIM class for logging
     $logInstances = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName
