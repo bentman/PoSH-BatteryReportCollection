@@ -121,12 +121,17 @@ try {
     $instance = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName -ErrorAction SilentlyContinue
     if ($null -eq $instance) {
         # Create new instance
-        New-CimInstance -Namespace $namespacePath -ClassName $newClassName -Property $classProperties
+        $newInstance = New-Object -TypeName PSObject
+        foreach ($prop in $classProperties.Keys) {
+            $newInstance | Add-Member -MemberType NoteProperty -Name $prop -Value $classProperties[$prop]
+        }
+        New-CimInstance -Namespace $namespacePath -ClassName $newClassName -Property $newInstance.PSObject.Properties
     } else {
         # Update existing instance
         foreach ($prop in $classProperties.Keys) {
-            $instance | Set-CimInstance -Property @{ $prop = $classProperties[$prop] }
+            $instance.$prop = $classProperties[$prop]
         }
+        $instance | Set-CimInstance
     }
 
 } catch {
