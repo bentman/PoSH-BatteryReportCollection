@@ -67,24 +67,23 @@ try {
         exit
     }#>
 
-    # Generate HTML battery report
+    # Generate HTML battery report for readability
     powercfg /batteryreport /output $reportPathHtml
     Write-Host "Battery report generated at $reportPathHtml"
 
-    # Generate XML battery report
+    # Generate XML battery report for script consumption
     powercfg /batteryreport /output $reportPathXml /XML
     Write-Host "Battery report generated at $reportPathXml"
 
     # Parse battery report
     [xml]$batteryReport = Get-Content $reportPathXml
-    $fullChargeCapacity = $batteryReport.BatteryReport.Report.FullChargeCapacity.mWh
     $designCapacity = $batteryReport.BatteryReport.Report.DesignCapacity.mWh
+    $fullChargeCapacity = $batteryReport.BatteryReport.Report.FullChargeCapacity.mWh
     $cycleCount = $batteryReport.BatteryReport.Report.CycleCount.Count
     $activeTimeAcValue = $batteryReport.BatteryReport.Report.Active.PowerStateTimeAc.Value
     $activeRuntime = if ([string]::IsNullOrWhiteSpace($activeTimeAcValue)) {'00:00:00'} else {ConvertTo-StandardTimeFormat $activeTimeAcValue}
-    $modernStandbyDuration = $batteryReport.BatteryReport.Report.ModernStandby.Duration
     $modernStandby = if ([string]::IsNullOrWhiteSpace($modernStandbyDuration)) {'00:00:00'} else {ConvertTo-StandardTimeFormat $modernStandbyDuration}
-    
+        
     # Get WMI namespace if it doesn't exist
     $namespace = Get-WmiObject -Namespace root\cimv2 -Class __Namespace -Filter "Name = '$newClassName'" -ErrorAction Stop
     if ($null -eq $namespace) {
@@ -96,11 +95,12 @@ try {
 
     # WMI class properties
     $classProperties = @{
-        DesignCapacity = $designCapacity
         FullChargeCapacity = $fullChargeCapacity
+        DesignCapacity = $designCapacity
         CycleCount = $cycleCount
-        ActiveRuntime = $activeRuntime
+        ActiveTimeAcValue = $activeTimeAcValue
         ModernStandby = $modernStandby
+        ActiveRuntime = $activeRuntime
     }
 
     # Create WMI class if it doesn't exist
@@ -115,21 +115,21 @@ try {
         $class.Put()
     }
 
-# Create or update an instance of WMI class
-$instance = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName -ErrorAction SilentlyContinue
-if ($null -eq $instance) {
-    # Create new instance
-    $newInstance = New-Object -TypeName PSObject
-    foreach ($prop in $classProperties.Keys) {
-        Add-Member -InputObject $newInstance -NotePropertyName $prop -NotePropertyValue $classProperties[$prop]
+    # Create or update an instance of WMI class
+    $instance = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName -ErrorAction SilentlyContinue
+    if ($null -eq $instance) {
+        # Create new instance
+        $newInstance = New-Object -TypeName PSObject
+        foreach ($prop in $classProperties.Keys) {
+            Add-Member -InputObject $newInstance -NotePropertyName $prop -NotePropertyValue $classProperties[$prop]
+        }
+        New-CimInstance -Namespace $namespacePath -ClassName $newClassName -Property $newInstance.PSObject.Properties
+    } else {
+        # Update existing instance
+        foreach ($prop in $classProperties.Keys) {
+            $instance | Set-CimInstance -Property @{ $prop = $classProperties[$prop] }
+        }
     }
-    New-CimInstance -Namespace $namespacePath -ClassName $newClassName -Property $newInstance.PSObject.Properties
-} else {
-    # Update existing instance
-    foreach ($prop in $classProperties.Keys) {
-        $instance | Set-CimInstance -Property @{ $prop = $classProperties[$prop] }
-    }
-}
 
 } catch {
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
@@ -139,13 +139,12 @@ if ($null -eq $instance) {
     Write-Host "`nNew Class: $newClassName"
     # Define a list of properties to display
     $propertiesToDisplay = @(
-        fullChargeCapacity,
-        designCapacity,
-        cycleCount,
-        activeTimeAcValue,
-        activeRuntime,
-        modernStandbyDuration,
-        modernStandby
+        'fullChargeCapacity',
+        'designCapacity',
+        'cycleCount',
+        'activeTimeAcValue',
+        'modernStandby'
+        'activeRuntime',
     )
     # Loop through each instance and log the properties
     foreach ($logInstance in $logInstances) {
