@@ -106,7 +106,7 @@ try {
     }
 
     # Create WMI class if it doesn't exist
-    $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $newClassName} -ErrorAction Stop
+    $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $newClassName} -ErrorAction SilentlyContinue
     if ($null -eq $class) {
         # Create new class
         $class = New-Object System.Management.ManagementClass($namespacePath, [String]::Empty, $null)
