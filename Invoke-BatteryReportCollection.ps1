@@ -59,14 +59,6 @@ try {
     Write-Host "Script Version = $scriptVer"
     (Get-PSCallStack).InvocationInfo.MyCommand.Name
 
-    <# Check if a battery is present in the system
-    $batteryPresent = Get-WmiObject -Class Win32_Battery -ErrorAction Stop
-    if ($null -eq $batteryPresent) {
-        Write-Host "Error: No battery detected on this system - Skipping all operations." -ForegroundColor Red
-        Stop-Transcript
-        exit
-    }#>
-
     # Generate HTML battery report for readability
     powercfg /batteryreport /output $reportPathHtml
     Write-Host "Battery report generated at $reportPathHtml"
@@ -77,9 +69,9 @@ try {
 
     # Parse battery report
     [xml]$batteryReport = Get-Content $reportPathXml
-    $designCapacity = $batteryReport.BatteryReport.Report.DesignCapacity.mWh
-    $fullChargeCapacity = $batteryReport.BatteryReport.Report.FullChargeCapacity.mWh
-    $cycleCount = $batteryReport.BatteryReport.Report.CycleCount.Count
+    $designCapacity = [uint64]$batteryReport.BatteryReport.Report.DesignCapacity.mWh
+    $fullChargeCapacity = [uint64]$batteryReport.BatteryReport.Report.FullChargeCapacity.mWh
+    $cycleCount = [uint32]$batteryReport.BatteryReport.Report.CycleCount.Count
     $activeTimeAcValue = $batteryReport.BatteryReport.Report.Active.PowerStateTimeAc.Value
     $activeRuntime = if ([string]::IsNullOrWhiteSpace($activeTimeAcValue)) {'00:00:00'} else {ConvertTo-StandardTimeFormat $activeTimeAcValue}
     $modernStandby = if ([string]::IsNullOrWhiteSpace($modernStandbyDuration)) {'00:00:00'} else {ConvertTo-StandardTimeFormat $modernStandbyDuration}
@@ -103,6 +95,16 @@ try {
         ActiveRuntime = $activeRuntime
     }
 
+    # Define property types
+    $propertyTypes = @{
+        FullChargeCapacity = [System.Management.CimType]::UInt64
+        DesignCapacity = [System.Management.CimType]::UInt64
+        CycleCount = [System.Management.CimType]::UInt32
+        ActiveTimeAcValue = [System.Management.CimType]::String
+        ModernStandby = [System.Management.CimType]::String
+        ActiveRuntime = [System.Management.CimType]::String
+    }
+
     # Create WMI class if it doesn't exist
     $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $newClassName} -ErrorAction Stop
     if ($null -eq $class) {
@@ -110,7 +112,7 @@ try {
         $class = New-Object System.Management.ManagementClass($namespacePath, [String]::Empty, $null)
         $class["__CLASS"] = $newClassName
         foreach ($prop in $classProperties.Keys) {
-            $class.Properties.Add($prop, [System.Management.CimType]::String, $false)
+            $class.Properties.Add($prop, $propertyTypes[$prop], $false)
         }
         $class.Put()
     }
@@ -119,13 +121,7 @@ try {
     $instance = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName -ErrorAction SilentlyContinue
     if ($null -eq $instance) {
         # Create new instance
-        $newInstance = New-Object -TypeName PSObject
-        foreach ($prop in $classProperties.Keys) {
-            Add-Member -InputObject $newInstance -NotePropertyName $prop -NotePropertyValue $classProperties[$prop]
-        }
-        $hashProps = @{}
-        $newInstance.PSObject.Properties | ForEach-Object { $hashProps[$_.Name] = $_.Value }
-        New-CimInstance -Namespace $namespacePath -ClassName $newClassName -Property $hashProps
+        New-CimInstance -Namespace $namespacePath -ClassName $newClassName -Property $classProperties
     } else {
         # Update existing instance
         foreach ($prop in $classProperties.Keys) {
