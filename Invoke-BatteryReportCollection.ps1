@@ -13,7 +13,7 @@
     This example shows how to run the script.
         PS C:\> .\Invoke-BatteryReportCollection.ps1
 .NOTES
-    Version 1.4: Release
+    Version 1.5: Corrected issue #1 "Get-CimInstance: Invoke-BatteryReportCollection.ps1:186:21"
     Release Date: 2023-07-28
     Requires: PowerShell V3+. Requires elevated Admin privileges.
     https://github.com/bentman/PoSH-BatteryReportCollection
@@ -24,7 +24,7 @@
 
 ############################### VARIABLES ###############################
 # Script Version
-$scriptVer = "1.4"
+$scriptVer = "1.5"
 # Define new Namespace name
 $newClassName = "BatteryReport"
 # Define Report folder root
@@ -101,19 +101,19 @@ Start-Transcript -Path $transcriptPath -Force
 Write-Host "" # Empty line for transcript readability
 Write-Host "Script Version = $scriptVer"
 (Get-PSCallStack).InvocationInfo.MyCommand.Name
-# Check if a battery is present in the system
+<# Check if a battery is present in the system
 $batteryPresent = Get-CimInstance -ClassName Win32_Battery
 if (!$batteryPresent) {
     # If a battery is not found, log an error and exit the script
-    Write-Host "Error: No battery detected on this system - Skipping operations." -ForegroundColor Red
+    Write-Host "Error: No battery detected on this system - Skipping all operations." -ForegroundColor Red
     Stop-Transcript
     Exit
-}
+}#>
 # Execution wrapped in a Try/Catch
 Try { 
     Try {
     # Create WMI class
-    New-WmiClass -namespacePath $namespacePath -newClassName $newClassName
+    New-WmiClass -namespacePath $namespacePath -newClassName $newClassName -Verbose
     } Catch {
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
         Stop-Transcript
