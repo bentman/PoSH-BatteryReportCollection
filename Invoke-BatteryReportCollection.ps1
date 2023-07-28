@@ -45,90 +45,122 @@ function New-WmiClass {
         [Parameter(Mandatory=$true)][string]$namespacePath,
         [Parameter(Mandatory=$true)][string]$newClassName
     )
-    # Check if the Namespace exists, if not create it
-    $namespace = Get-WmiObject -Namespace "root\cimv2" -Query "SELECT * FROM __Namespace WHERE Name='$newClassName'"
-    if (!$namespace) {
-        $namespace = ([wmiclass]'root\cimv2:__Namespace').CreateInstance()
-        $namespace.Name = "$newClassName"
-        $namespace.Put() | Out-Null
+    try {
+        # Check if the Namespace exists, if not create it
+        $namespace = Get-WmiObject -Namespace "root\cimv2" -Query "SELECT * FROM __Namespace WHERE Name='$newClassName'"
+        if (!$namespace) {
+            Write-Output "Creating namespace: $newClassName"
+            $namespace = ([wmiclass]'root\cimv2:__Namespace').CreateInstance()
+            $namespace.Name = "$newClassName"
+            $namespace.Put() | Out-Null
+        }
+        # Check if the Class exists, if not create it
+        $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $newClassName}
+        if (!$class) {
+            Write-Output "Creating class: $newClassName"
+            $class = New-Object System.Management.ManagementClass($namespacePath, $newClassName, $null)
+            $class.Qualifiers.Add("Static", $true) | Out-Null
+            $class.Properties.Add("ComputerName", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
+            $class.Properties.Add("DesignCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
+            $class.Properties.Add("FullChargeCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
+            $class.Properties.Add("CycleCount", [System.Management.CimType]::UInt32, $false) | Out-Null
+            $class.Properties.Add("ActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("ActiveRuntimeAtDesignCapacity", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("ModernStandby", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("ModernStandbyAtDesignCapacity", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Put()
+            Write-Output "Class $newClassName has been successfully created in the namespace $namespacePath."
+        }
     }
-    # Check if the Class exists, if not create it
-    $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $newClassName}
-    if (!$class) {
-        $class = New-Object System.Management.ManagementClass($namespacePath, $newClassName, $null)
-        $class.Qualifiers.Add("Static", $true) | Out-Null
-        $class.Properties.Add("ComputerName", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
-        $class.Properties.Add("DesignCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
-        $class.Properties.Add("FullChargeCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
-        $class.Properties.Add("CycleCount", [System.Management.CimType]::UInt32, $false) | Out-Null
-        $class.Properties.Add("ActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Properties.Add("ActiveRuntimeAtDesignCapacity", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Properties.Add("ModernStandby", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Properties.Add("ModernStandbyAtDesignCapacity", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Put()
+    catch {
+        Write-Error "Failed to create the class $newClassName in the namespace $namespacePath. Error: $_"
     }
 }
 
-function ConvertTo-StandardTimeFormat { # Convert ISO 8601 to "HH:MM:SS"
-    param(
+function ConvertTo-StandardTimeFormat {
+    [CmdletBinding()] param(
         # ISO 8601 duration passed as a string
-        [Parameter(Mandatory=$true)][string]$iso8601Duration
+        [Parameter(Mandatory=$true)]
+        [string]$iso8601Duration
     )
-    # Return a default value for empty input
-    if ([string]::IsNullOrEmpty($iso8601Duration)) {
+    # Validate input: Must start with 'PT' (ISO 8601)
+    if ($iso8601Duration -notmatch '^PT') {
+        Write-Error "Invalid ISO 8601 duration format. The input should start with 'PT'."
+        return
+    }
+    # Return a default value for empty or just 'PT' input
+    if ([string]::IsNullOrEmpty($iso8601Duration) -or $iso8601Duration -eq 'PT') {
         return "00:00:00"
     }
-    # Regular Expression pattern
-    $match = [Regex]::Match($iso8601Duration, 'PT((?<hours>\d+)H)?((?<minutes>\d+)M)?((?<seconds>\d+)S)?')
-    # Regular Expression matching
-    $hours = [int]$match.Groups['hours'].Value
-    $minutes = [int]$match.Groups['minutes'].Value
-    $seconds = [int]$match.Groups['seconds'].Value
-    # Convert ISO 8601 timespan to standard "HH:MM:SS" format
-    $timespan = New-TimeSpan -Hours $hours -Minutes $minutes -Seconds $seconds
-    return $timespan.ToString("hh\:mm\:ss")
+    try {
+        # Regular Expression pattern
+        $match = [Regex]::Match($iso8601Duration, 'PT((?<hours>\d+)H)?((?<minutes>\d+)M)?((?<seconds>\d+)S)?')
+        # Regular Expression matching
+        $hours = [int]$match.Groups['hours'].Value
+        $minutes = [int]$match.Groups['minutes'].Value
+        $seconds = [int]$match.Groups['seconds'].Value
+        # Validate if we could extract any time unit
+        if ($hours -eq 0 -and $minutes -eq 0 -and $seconds -eq 0) {
+            Write-Error "Invalid ISO 8601 duration format. No valid time unit (hour, minute, second) could be extracted."
+            return
+        }
+        # Convert ISO 8601 timespan to standard "HH:MM:SS" format
+        $timespan = New-TimeSpan -Hours $hours -Minutes $minutes -Seconds $seconds
+        return $timespan.ToString("hh\:mm\:ss")
+    }
+    catch {
+        Write-Error "Failed to convert ISO 8601 duration to standard time format. Error: $_"
+    }
 }
 
 ############################### EXECUTION ###############################
 
-# Create output folder if not exist
-if (!(Test-Path -Path $reportFolderPath)) {
+# Create output folder if it does not exist
+if (-not (Test-Path -Path $reportFolderPath)) {
     New-Item -ItemType Directory -Path $reportFolderPath | Out-Null
 }
+
 # Start PowerShell Transcript
 Start-Transcript -Path $transcriptPath -Force
 Write-Host "" # Empty line for transcript readability
 Write-Host "Script Version = $scriptVer"
 (Get-PSCallStack).InvocationInfo.MyCommand.Name
+
 <# Check if a battery is present in the system
 $batteryPresent = Get-CimInstance -ClassName Win32_Battery
-if (!$batteryPresent) {
+if (-not $batteryPresent) {
     # If a battery is not found, log an error and exit the script
     Write-Host "Error: No battery detected on this system - Skipping all operations." -ForegroundColor Red
     Stop-Transcript
-    Exit
+    exit
 }#>
+
 # Execution wrapped in a Try/Catch
-Try { 
-    Try {
-    # Create WMI class
-    New-WmiClass -namespacePath $namespacePath -newClassName $newClassName -Verbose
-    } Catch {
+try { 
+    try {
+        # Create WMI class
+        New-WmiClass -namespacePath $namespacePath -newClassName $newClassName -Verbose
+    } catch {
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
         Stop-Transcript
-        Exit
+        exit
     }
+    
     # Generate HTML 'powercfg /batteryreport' for readability
     powercfg /batteryreport /output $reportPathHtml
+
     # Run XML 'powercfg /batteryreport'
     powercfg /batteryreport /output $reportPathXml /xml
+
     # Store XML 'powercfg /batteryreport' content
     [xml]$batteryReport = Get-Content $reportPathXml
+
     # Parse the battery and runtime estimates from the XML report
     $reportContent = $batteryReport.BatteryReport.Report
     $battery = $reportContent.Batteries.Battery
     $runtimeEstimates = $reportContent.RuntimeEstimates
+
     # Create a hash table with all the values
     $batteryData = @{
         DesignCapacity = $battery.DesignCapacity
@@ -139,64 +171,56 @@ Try {
         ModernStandby = $runtimeEstimates.FullCharge.ModernStandby
         ModernStandbyAtDesignCapacity = $runtimeEstimates.FullCharge.ModernStandbyAtDesignCapacity
     }
+
     # Convert ActiveRuntime from ISO 8601 duration format to HH:MM:SS
-    if ($batteryData.ActiveRuntime) {
-        $batteryData.ActiveRuntime = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntime
+    foreach ($key in 'ActiveRuntime', 'ActiveRuntimeAtDesignCapacity', 'ModernStandby', 'ModernStandbyAtDesignCapacity') {
+        if ($batteryData[$key]) {
+            $batteryData[$key] = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData[$key]
+        }
     }
-    if ($batteryData.ActiveRuntimeAtDesignCapacity) {
-        $batteryData.ActiveRuntimeAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ActiveRuntimeAtDesignCapacity
-    }
-    if ($batteryData.ModernStandby) {
-        $batteryData.ModernStandby = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandby
-    }
-    if ($batteryData.ModernStandbyAtDesignCapacity) {
-        $batteryData.ModernStandbyAtDesignCapacity = ConvertTo-StandardTimeFormat -iso8601Duration $batteryData.ModernStandbyAtDesignCapacity
-    }
+
     # Check if an instance with the same ComputerName already exists
     $instance = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName |
         Where-Object { $_.ComputerName -eq $env:COMPUTERNAME }
-    if ($null -ne $instance) {
-        # Instance exists, update it
-        $instance | Set-CimInstance -Property @{
-            DesignCapacity = $batteryData.DesignCapacity
-            FullChargeCapacity = $batteryData.FullChargeCapacity
-            CycleCount = $batteryData.CycleCount
-            ActiveRuntime = $batteryData.ActiveRuntime
-            ActiveRuntimeAtDesignCapacity = $batteryData.ActiveRuntimeAtDesignCapacity
-            ModernStandby = $batteryData.ModernStandby
-            ModernStandbyAtDesignCapacity = $batteryData.ModernStandbyAtDesignCapacity
-        }
-    } else {
-        # Instance does not exist, create it
+
+    # Instance does not exist, create it
+    if ($null -eq $instance) {
         Set-WmiInstance -Namespace $namespacePath -Class $newClassName -Arguments @{
             ComputerName = $env:COMPUTERNAME
-            DesignCapacity = $batteryData.DesignCapacity
-            FullChargeCapacity = $batteryData.FullChargeCapacity
-            CycleCount = $batteryData.CycleCount
-            ActiveRuntime = $batteryData.ActiveRuntime
-            ActiveRuntimeAtDesignCapacity = $batteryData.ActiveRuntimeAtDesignCapacity
-            ModernStandby = $batteryData.ModernStandby
-            ModernStandbyAtDesignCapacity = $batteryData.ModernStandbyAtDesignCapacity
-        }
+        } + $batteryData
+    } else {
+        # Instance exists, update it
+        $instance | Set-CimInstance -Property $batteryData
     }
-} Catch {
+} catch {
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
-} Finally {
+} finally {
     # Get instances of the new BatteryReport CIM class for logging
     $logInstances = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName
+
     Write-Host "`nNew Class: $newClassName"
-    # Loop through each instance and log the properties
-    foreach ($logInstance in $logInstances) {
-        Write-Host "" # Empty line for transcript readability
-        Write-Host "    ComputerName: $($logInstance.ComputerName)"
-        Write-Host "    DesignCapacity: $($logInstance.DesignCapacity)"
-        Write-Host "    FullChargeCapacity: $($logInstance.FullChargeCapacity)"
-        Write-Host "    CycleCount: $($logInstance.CycleCount)"
-        Write-Host "    ActiveRuntime: $($logInstance.ActiveRuntime)"
-        Write-Host "    ActiveRuntimeAtDesignCapacity: $($logInstance.ActiveRuntimeAtDesignCapacity)"
-        Write-Host "    ModernStandby: $($logInstance.ModernStandby)"
-        Write-Host "    ModernStandbyAtDesignCapacity: $($logInstance.ModernStandbyAtDesignCapacity)"
-        Write-Host "" # Empty line for transcript readability
-    }
+
+# Define a list of properties to display
+$propertiesToDisplay = @(
+    'ComputerName', 
+    'DesignCapacity', 
+    'FullChargeCapacity', 
+    'CycleCount', 
+    'ActiveRuntime', 
+    'ActiveRuntimeAtDesignCapacity', 
+    'ModernStandby', 
+    'ModernStandbyAtDesignCapacity'
+)
+
+# Loop through each instance and log the properties
+foreach ($logInstance in $logInstances) {
+    Write-Host "" # Empty line for transcript readability
+    $logInstance.PSObject.Properties | 
+        Where-Object { $_.Name -in $propertiesToDisplay } |  # Only include properties in the display list
+        ForEach-Object {
+            Write-Host "    $($_.Name): $($_.Value)"
+        }
+    Write-Host "" # Empty line for transcript readability
+}
     Stop-Transcript
 }
