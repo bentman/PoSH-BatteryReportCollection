@@ -40,25 +40,26 @@ $transcriptPath = Join-Path $reportFolderPath "BatteryReportCollection.log"
 $namespacePath = "root\cimv2\$newClassName"
 
 ############################### FUNCTIONS ###############################
-function New-WmiClass {
+function New-CimClass {
     [CmdletBinding()] param (
         [Parameter(Mandatory=$true)][string]$namespacePath,
         [Parameter(Mandatory=$true)][string]$newClassName
     )
     try {
         # Check if the Namespace exists, if not create it
-        $namespace = Get-WmiObject -Namespace "root\cimv2" -Query "SELECT * FROM __Namespace WHERE Name='$newClassName'"
+        $namespace = Get-CimInstance -Namespace "root\cimv2" -ClassName "__Namespace" -Filter "Name='$newClassName'"
         if (!$namespace) {
             Write-Output "Creating namespace: $newClassName"
-            $namespace = ([wmiclass]'root\cimv2:__Namespace').CreateInstance()
-            $namespace.Name = "$newClassName"
-            $namespace.Put() | Out-Null
+            $namespace = New-CimInstance -Namespace "root\cimv2" -ClassName "__Namespace" -Property @{Name="$newClassName"} -PassThru
         }
         # Check if the Class exists, if not create it
-        $class = Get-WmiObject -Namespace $namespacePath -List | Where-Object {$_.Name -eq $newClassName}
+        $class = Get-CimClass -Namespace $namespacePath -ClassName $newClassName -ErrorAction SilentlyContinue
         if (!$class) {
             Write-Output "Creating class: $newClassName"
-            $class = New-Object System.Management.ManagementClass($namespacePath, $newClassName, $null)
+            $class = New-Object System.Management.ManagementClass("\\.\$namespacePath", [string]::Empty, $null)
+            $class["__CLASS"] = "$newClassName"
+            $class["__SUPERCLASS"] = ""
+            $class["__DYNASTY"] = $newClassName
             $class.Qualifiers.Add("Static", $true) | Out-Null
             $class.Properties.Add("ComputerName", [System.Management.CimType]::String, $false) | Out-Null
             $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
@@ -140,7 +141,7 @@ if (-not $batteryPresent) {
 try { 
     try {
         # Create WMI class
-        New-WmiClass -namespacePath $namespacePath -newClassName $newClassName -Verbose
+        New-CimClass -namespacePath $namespacePath -newClassName $newClassName -Verbose
     } catch {
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
         Stop-Transcript
@@ -197,30 +198,27 @@ try {
 } finally {
     # Get instances of the new BatteryReport CIM class for logging
     $logInstances = Get-CimInstance -Namespace $namespacePath -ClassName $newClassName
-
     Write-Host "`nNew Class: $newClassName"
-
-# Define a list of properties to display
-$propertiesToDisplay = @(
-    'ComputerName', 
-    'DesignCapacity', 
-    'FullChargeCapacity', 
-    'CycleCount', 
-    'ActiveRuntime', 
-    'ActiveRuntimeAtDesignCapacity', 
-    'ModernStandby', 
-    'ModernStandbyAtDesignCapacity'
-)
-
-# Loop through each instance and log the properties
-foreach ($logInstance in $logInstances) {
-    Write-Host "" # Empty line for transcript readability
-    $logInstance.PSObject.Properties | 
-        Where-Object { $_.Name -in $propertiesToDisplay } |  # Only include properties in the display list
-        ForEach-Object {
-            Write-Host "    $($_.Name): $($_.Value)"
-        }
-    Write-Host "" # Empty line for transcript readability
-}
-    Stop-Transcript
+    # Define a list of properties to display
+    $propertiesToDisplay = @(
+        'ComputerName', 
+        'DesignCapacity', 
+        'FullChargeCapacity', 
+        'CycleCount', 
+        'ActiveRuntime', 
+        'ActiveRuntimeAtDesignCapacity', 
+        'ModernStandby', 
+        'ModernStandbyAtDesignCapacity'
+    )
+    # Loop through each instance and log the properties
+    foreach ($logInstance in $logInstances) {
+        Write-Host "" # Empty line for transcript readability
+        $logInstance.PSObject.Properties | 
+            Where-Object { $_.Name -in $propertiesToDisplay } |  # Only include properties in the display list
+            ForEach-Object {
+                Write-Host "    $($_.Name): $($_.Value)"
+            }
+        Write-Host "" # Empty line for transcript readability
+    }
+        Stop-Transcript
 }
