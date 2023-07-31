@@ -3,9 +3,9 @@ SELECT
     BR.DesignCapacity, 
     BR.FullChargeCapacity, 
     BR.CycleCount, 
-    BR.ActiveRuntime,
-    BR.ActiveRuntimeAtDesignCapacity,
-    BR.ModernStandby,
-    BR.ModernStandbyAtDesignCapacity
+    BR.UsageAtDesignCapacity,
+    BR.UsageAtFullChargeCapacity,
+    BR.StandbyAtDesignCapacity,
+    BR.StandbyAtFullChargeCapacity
 FROM 
     BatteryReport AS BR
