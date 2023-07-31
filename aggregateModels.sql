@@ -20,7 +20,11 @@ SELECT
     AVG(dbo.TimeToSec(BR.ActiveRuntime)) AS AverageActiveRuntime,
     AVG(dbo.TimeToSec(BR.ActiveRuntimeAtDesignCapacity)) AS AverageActiveRuntimeAtDesignCapacity,
     AVG(dbo.TimeToSec(BR.ModernStandby)) AS AverageModernStandby,
-    AVG(dbo.TimeToSec(BR.ModernStandbyAtDesignCapacity)) AS AverageModernStandbyAtDesignCapacity
+    AVG(dbo.TimeToSec(BR.ModernStandbyAtDesignCapacity)) AS AverageModernStandbyAtDesignCapacity,
+    AVG(dbo.TimeToSec(BR.RescentActiveRuntime)) AS AverageRescentActiveRuntime,
+    AVG(dbo.TimeToSec(BR.RescentActiveRuntimeAtDesignCapacity)) AS AverageRescentActiveRuntimeAtDesignCapacity,
+    AVG(dbo.TimeToSec(BR.RescentModernStandby)) AS AverageRescentModernStandby,
+    AVG(dbo.TimeToSec(BR.RescentModernStandbyAtDesignCapacity)) AS AverageRescentModernStandbyAtDesignCapacity
 FROM 
     BatteryReport AS BR
 INNER JOIN 
