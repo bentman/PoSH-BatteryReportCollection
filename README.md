@@ -36,13 +36,9 @@ Please ensure to replace the table and field names in the SQL queries to match t
 
 ## Convert `$rescentUsages` data for SCCM Reporting
 
-`$rescentUsages` contains detailed data on the system's energy usage over the last three days, broken down into periods of active use and modern standby. This data can be extremely useful for understanding a device's energy consumption patterns, but it's in a raw format that's not easily interpretable.
+`$rescentUsages` contains detailed data on the system's energy usage over the last 21 days, broken down into periods of active use and modern standby. This data can be extremely useful for understanding a device's energy consumption patterns, but it's in a raw format that's not easily interpretable.
 
-To convert `$rescentUsages` data for SCCM reporting, you need to parse the XML data into a more readable and interpretable format. This can be achieved using PowerShell XML parsing techniques. You can iterate over the `$rescentUsages` object, extract the relevant data, and format it into a suitable structure for SCCM reporting.
-
-Once converted, you can extend the WMI class to include this new data, similar to the procedure detailed in step 3 above.
-
-Please note, working with `$rescentUsages` data requires a good understanding of PowerShell XML parsing techniques and SCCM reporting.
+To convert `$rescentUsages` data for SCCM reporting, we parse the data from the XML and serialize it into a JSON string for storage in WMI. Formatting this structure suitable for SCCM reporting can be accomplished by extracting the `$rescentUsages` JSON String object and extract the relevant data. Please note, working with `$rescentUsages` data requires a good understanding of PowerShell XML parsing techniques, JSON conversion and SCCM reporting &/or possibly using PowerBI in conjunction with all three (NOTE: Investigating doing this from the SQL queries).
 
 ## SQL Queries
 
