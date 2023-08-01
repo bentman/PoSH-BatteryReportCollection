@@ -117,7 +117,7 @@ function ConvertTo-StandardTimeFormat {
 # Remove previous WMI 'root\cimv2\BatteryReport:BatteryInfo' if exist
     Remove-WmiNamespaceClass -oldWmiNamespace $newWmiNamespacePath -oldWmiClass $newWmiClass
 
-    # Generate HTML 'PowerCfg /batteryreport' for human readability
+# Generate HTML 'PowerCfg /batteryreport' for human readability
     Write-Host "`n### Generating HTML Battery Report..."
     PowerCfg.exe /batteryreport /output $reportPathHtml
     Write-Host "### HTML Battery Report generated at $reportPathHtml"
@@ -213,7 +213,7 @@ Try { # Create WMI class if not exists
         'DesignActiveRuntime',
         'FullChargeActiveRuntime'
     )
-    # Loop through each instance and log the properties
+# Loop through each instance and log the properties
     foreach ($logInstance in $logInstances) {
         Write-Host "" # Empty line for transcript readability
         $logInstance.PSObject.Properties | 
@@ -221,7 +221,7 @@ Try { # Create WMI class if not exists
             ForEach-Object {
                 Write-Host "    $($_.Name): $($_.Value)"
             }
-            Write-Host "" # Empty line for transcript readability
+         Write-Host "" # Empty line for transcript readability
     }
 
 # Terminate Logging
