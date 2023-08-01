@@ -167,8 +167,7 @@ Try { # Create WMI class if not exists
         $class.Properties.Add("FullChargeActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
         $class.Put()
     }
-}
-Catch {
+} Catch {
     Write-Host "`n### Failed to create '$($newWmiNamespacePath):$($newWmiClass)'" -ForegroundColor Red
     Write-Error "Error: $($_.Exception.Message)"
     Stop-Transcript
@@ -191,8 +190,7 @@ Catch {
         # Save the instance
         $newInstance.Put()
         Write-Host "### Inserted values WMI Namespace\Class\Properties at '$($newWmiNamespacePath):$($newWmiClass)'..."
-    }
-    catch {
+    } catch {
         Write-Host "`n### Failed to create 'root\cimv2\BatteryReport:BatteryInfo'" -ForegroundColor Red
         Write-Error "Error: $($_.Exception.Message)"
         Stop-Transcript
