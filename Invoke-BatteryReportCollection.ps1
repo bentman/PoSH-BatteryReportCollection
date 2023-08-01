@@ -151,10 +151,13 @@ function ConvertTo-StandardTimeFormat {
     $fullChargeStandbyRuntimeValue = $batteryReport.BatteryReport.RuntimeEstimates.FullChargeCapacity.ConnectedStandbyRuntime
 
 # Convert 8601 durations to HH:MM:SS format
-    Write-Host "`n### Converting 8601 durations to HH:MM:SS format..."
+    Write-Host "`n### Converting ($)designActiveRuntime 8601 durations to HH:MM:SS format..."
     $designActiveRuntime = if ([string]::IsNullOrWhiteSpace($designActiveRuntimeValue)) {'00:00:00'} else {ConvertTo-StandardTimeFormat $designActiveRuntimeValue}
+    Write-Host "`n### Converting ($)designStandbyRuntime 8601 durations to HH:MM:SS format..."
     $designStandbyRuntime = if ([string]::IsNullOrWhiteSpace($designStandbyRuntimeValue)) {'00:00:00'} else {ConvertTo-StandardTimeFormat $designStandbyRuntimeValue}
+    Write-Host "`n### Converting ($)fullChargeActiveRuntime 8601 durations to HH:MM:SS format..."
     $fullChargeActiveRuntime = if ([string]::IsNullOrWhiteSpace($fullChargeActiveRuntimeValue)) {'00:00:00'} else {ConvertTo-StandardTimeFormat $fullChargeActiveRuntimeValue}
+    Write-Host "`n### Converting ($)fullChargeStandbyRuntime 8601 durations to HH:MM:SS format..."
     $fullChargeStandbyRuntime = if ([string]::IsNullOrWhiteSpace($fullChargeStandbyRuntimeValue)) {'00:00:00'} else {ConvertTo-StandardTimeFormat $fullChargeStandbyRuntimeValue}
 
 # Parse battery usage over last 21 days and convert to string
