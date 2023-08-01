@@ -3,9 +3,8 @@
    Invoke-BatteryReportCollection is a script to collect 'powercfg.exe /batteryreport' and 'powercfg /energy' information, storing it in a custom WMI class.
 .DESCRIPTION
    The script creates a custom WMI namespace and class if they don't exist. 
-   It then runs 'powercfg /batteryreport' and 'powercfg /energy' commands to generate battery and system energy reports in HTML format. 
-   Both reports are parsed to extract battery and energy consumption information which are then stored in the custom WMI class. 
-   The reports are saved in the 'C:\temp\batteryreport' directory, and are overwritten each time the script runs.
+   It then runs 'powercfg /batteryreport' and 'powercfg /batteryreport /XML' commands to generate battery reports in HTML & XML formats. 
+   XML report is parsed to extract battery information which are then stored in the custom WMI class. 
 .PARAMETER None
    This script does not accept any parameters.
 .EXAMPLE
