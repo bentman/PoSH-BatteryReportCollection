@@ -1,4 +1,4 @@
-# SCCM Battery Health Report Collection and Reporting
+# SCCM Battery Report Collection and Reporting
 
 This repository includes the `Invoke-BatteryReportCollection.ps1` script, which generates battery health and system energy reports for Windows computers, stores them in a newly created WMI class, and extends SCCM's hardware inventory to include this new data. It also provides SQL queries to generate reports in SCCM and a guide on how to convert `$rescentUsages` data for SCCM reporting.
 
