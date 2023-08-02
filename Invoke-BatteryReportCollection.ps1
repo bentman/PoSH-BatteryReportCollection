@@ -1,11 +1,10 @@
 <#
 .SYNOPSIS
-   Invoke-BatteryReportCollection is a script to collect 'powercfg.exe /batteryreport' and 'powercfg /energy' information, storing it in a custom WMI class.
+   Invoke-BatteryReportCollection is a script to collect 'powercfg.exe /batteryreport' information, storing it in a custom WMI class.
 .DESCRIPTION
    The script creates a custom WMI namespace and class if they don't exist. 
-   It then runs 'powercfg /batteryreport' and 'powercfg /energy' commands to generate battery and system energy reports in HTML format. 
-   Both reports are parsed to extract battery and energy consumption information which are then stored in the custom WMI class. 
-   The reports are saved in the 'C:\temp\batteryreport' directory, and are overwritten each time the script runs.
+   It then runs 'powercfg /batteryreport' and 'powercfg /batteryreport /XML' commands to generate battery reports in HTML & XML formats. 
+   XML report is parsed to extract battery information which are then stored in the custom WMI class. 
 .PARAMETER None
    This script does not accept any parameters.
 .EXAMPLE
@@ -13,43 +12,39 @@
    This example shows how to run the script.
 .NOTES
     NOTE: As this script is complex and handles many operations, thoroughly test it in a safe environment before using it in a production scenario.
-    Version: 3.0
-    Last Updated: 2023-07-31
+    Version: 4.0
+    Last Updated: 2023-08-02
     Copyright (c) 2023 https://github.com/bentman
-    https://github.com/bentman/
-    Requires: PowerShell V3+. Needs administrative privileges.
+    https://github.com/bentman/PoSH-BatteryReportCollection
 .CHANGE
    Version 1.0: Initial script
    Version 2.0: Corrected errors collected in feedback & added better logging.
-   Version 3.0: Changed WMI Path to 'root\cimv2\BatteryReport:BatteryInfo'
-                Expanded parsing capabilities to extract energy consumption information.
-   Version 3.1: Corrected 'function Remove-WmiNamespaceClass' & added better logging
+   Version 3.0: Corrected 'function Remove-WmiNamespaceClass' + logging
+   Version 4.0: Verified w10 + Error Handling
 .LINK
     https://docs.microsoft.com/powershell
 #>
 ############################## VARIABLES ###############################
 # Script Version
-$scriptVer = "3.1"
+$scriptVer = "4.0"
 # Local hard drive location for processing
 $reportFolder = "C:\temp"
 # Name to assign WMI Namespace 
-$newWmiNamespace = "BatteryReport"
-# Name to assign WMI Namespace Class
-$newWmiClass = "BatteryInfo"
+$newWmiClass = "BatteryReport"
 # WMI Parent designation (recommended for SCCM) 
 $namespaceParent = "root\cimv2"
+# WMI Namespace path for operations (root\cimv2\BatteryReport)
+$newWmiClassPath = "$namespaceParent\$newWmiClass"
 
 ############################### GENERATED ###############################
 # Subfolder created on Local hard drive location for processing and transcript log
-$reportFolderPath = Join-Path $reportFolder "$newWmiNamespace"
+$reportFolderPath = Join-Path $reportFolder "$newWmiClass"
 # XML Battery Report for parsing
-$reportPathXml = Join-Path $reportFolderPath "$newWmiNamespace.xml"
+$reportPathXml = Join-Path $reportFolderPath "$newWmiClass.xml"
 # HTML Battery Report for human readability
-$reportPathHtml = Join-Path $reportFolderPath "$newWmiNamespace.html"
+$reportPathHtml = Join-Path $reportFolderPath "$newWmiClass.html"
 # Script transcript for logging
-$transcriptPath = Join-Path $reportFolderPath "$($newWmiNamespace)-Transcript.log"
-# WMI Namespace path for operations (root\cimv2\BatteryReport)
-$newWmiNamespacePath = "$namespaceParent\$newWmiNamespace"
+$transcriptPath = Join-Path $reportFolderPath "$($newWmiClass)-Transcript.log"
 
 ############################### FUNCTION  ###############################
 function Remove-WmiNamespaceClass { # Remove previous WMI Parent\Namespace:Class if exist 
@@ -59,13 +54,14 @@ function Remove-WmiNamespaceClass { # Remove previous WMI Parent\Namespace:Class
     )
     try {
         $existingBatteryReport = (Get-WmiObject -Namespace $oldWmiNamespace -List | Where-Object {$_.Name -eq $oldWmiClass})
+
         if (Get-WmiObject -Namespace $oldWmiNamespace -List | Where-Object {$_.Name -eq $oldWmiClass}) {
-            Write-Warning "`n### Existing $existingBatteryReport will be removed before adding new."
+            Write-Warning "### Existing $existingBatteryReport will be removed before adding new."
             Remove-WmiObject -Namespace $oldWmiNamespace -Class $oldWmiClass -Verbose
         }
     } catch {
-        Write-Error "### ERROR: Removing WMI namespace" -ForegroundColor Green
-        Write-Error "Error: $($_.Exception.Message)"
+        Write-Error "`n### ERROR: Removing previous WMI $oldWmiClass"
+        Write-Error "$($_.Exception.Message)"
     }
 }
 
@@ -75,7 +71,7 @@ function ConvertTo-StandardTimeFormat {
     )
     # Check for null, empty string, or whitespace
     if ([string]::IsNullOrWhiteSpace($iso8601Duration)) {
-        Write-Warning "`n### The ISO 8601 duration cannot be null, empty, or whitespace."
+        Write-Warning "### The ISO 8601 duration cannot be null, empty, or whitespace."
         Write-Host "### Value '0:00:00:00' will be inserted for 'Days:Hours:Minutes:Seconds'. "
         return '0:00:00:00'
     }
@@ -88,7 +84,7 @@ function ConvertTo-StandardTimeFormat {
     $seconds = [int]$match.Groups['seconds'].Value
     # Check for match success
     if (!$match.Success) {
-        Write-Warning "`n### The provided string does not match the ISO 8601 duration format."
+        Write-Warning "### The provided string does not match the ISO 8601 duration format."
         Write-Host "### Value '0:00:00:00' will be inserted for 'Days:Hours:Minutes:Seconds'. "
         return '0:00:00:00'
     }
@@ -100,32 +96,32 @@ function ConvertTo-StandardTimeFormat {
 ############################### EXECUTION ###############################
 # Establish Logging
     # Create output folder if it does not exist
-    if (!(Test-Path -Path $reportFolderPath)) {New-Item -ItemType Directory -Path $reportFolderPath}
+    if (!(Test-Path -Path $reportFolderPath)) {New-Item -ItemType Directory -Path $reportFolderPath -Verbose}
     # Start transcript logging
     Start-Transcript -Path $transcriptPath
     # Log script name & version
+    Write-Host "`nScript Version = $scriptVer"
     (Get-PSCallStack).InvocationInfo.MyCommand.Name
-    Write-Host "Script Version = $scriptVer"
 
 # Check if the system has a battery
     # Check if a battery is present in the system
     $batteryPresent = Get-WmiObject -Class Win32_Battery
-    if (!$batteryPresent) {Write-Warning "`n### No battery detected - Testing WMI/CIM only."}
+    if (!$batteryPresent) {Write-Warning "### No battery detected - Testing WMI/CIM only."}
 
 # Remove erroneous WMI 'root\cimv2\BatteryReport:BatteryReport' if exist
-    Remove-WmiNamespaceClass -oldWmiNamespace $newWmiNamespacePath -oldWmiClass $newWmiNamespace
+    Remove-WmiNamespaceClass -oldWmiNamespace $namespaceParent -oldWmiClass $newWmiClass
 
-# Remove previous WMI 'root\cimv2\BatteryReport:BatteryInfo' if exist
-    Remove-WmiNamespaceClass -oldWmiNamespace $newWmiNamespacePath -oldWmiClass $newWmiClass
-
-    # Generate HTML 'PowerCfg /batteryreport' for human readability
+# Generate HTML 'PowerCfg /batteryreport' for human readability
     Write-Host "`n### Generating HTML Battery Report..."
     PowerCfg.exe /batteryreport /output $reportPathHtml
-    Write-Host "### HTML Battery Report generated at $reportPathHtml"
-    # Generate XML 'PowerCfg /batteryreport' for script consumption
+    if ($LASTEXITCODE -ne '0') {Write-Warning "### $reportPathHtml was not generated!"}
+    else {Write-Host "### HTML Battery Report generated at $reportPathHtml"}
+
+# Generate XML 'PowerCfg /batteryreport' for script consumption
     Write-Host "`n### Generating XML Battery Report..."
     PowerCfg.exe /batteryreport /output $reportPathXml /XML
-    Write-Host "### XML Battery Report generated at $reportPathXml"
+    if ($LASTEXITCODE -ne '0') {Write-Warning "`### $reportPathXml was not generated!"}
+    else {Write-Host "### XML Battery Report generated at $reportPathXml"}
 
 # Store XML 'powercfg /batteryreport' content
     Write-Host "`n### Getting contents of XML Battery Report..."
@@ -142,41 +138,41 @@ function ConvertTo-StandardTimeFormat {
     $fullChargeActiveRuntimeValue = $batteryReport.BatteryReport.RuntimeEstimates.FullChargeCapacity.ActiveRuntime
 # Convert 8601 durations to HH:MM:SS format
     Write-Host "### Converting ($)designActiveRuntime 8601 durations to D:HH:MM:SS format..."
-    $designActiveRuntime = if ([string]::IsNullOrWhiteSpace($designActiveRuntimeValue)) {'00:00:00'} 
+    $designActiveRuntime = if ([string]::IsNullOrWhiteSpace($designActiveRuntimeValue)) {'0:00:00:00'} 
         else {ConvertTo-StandardTimeFormat $designActiveRuntimeValue}
     Write-Host "### Converting ($)fullChargeActiveRuntime 8601 durations to D:HH:MM:SS format..."
-    $fullChargeActiveRuntime = if ([string]::IsNullOrWhiteSpace($fullChargeActiveRuntimeValue)) {'00:00:00'} 
+    $fullChargeActiveRuntime = if ([string]::IsNullOrWhiteSpace($fullChargeActiveRuntimeValue)) {'0:00:00:00'} 
         else {ConvertTo-StandardTimeFormat $fullChargeActiveRuntimeValue}
 
-# Create WMI Namespace, Class at 'root\cimv2\BatteryReport:BatteryInfo' 
-Try { # Create WMI class if not exists
-    Write-Host "`n### Creating WMI Namespace\Class\Properties at '$($newWmiNamespacePath):$($newWmiClass)'..."
-    $class = (Get-WmiObject -Namespace $newWmiNamespacePath -List | Where-Object {$_.Name -eq $newWmiNamespace})
-    if (!$class) {
-        $class = New-Object System.Management.ManagementClass("$newWmiNamespacePath", [string]::Empty, $null)
-        $class["__CLASS"] = $newWmiClass
-        $class.Qualifiers.Add("Static", $true) | Out-Null
-        $class.Properties.Add("ComputerName", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
-        $class.Properties.Add("SystemManufacturer", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Properties.Add("SystemProductName", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Properties.Add("DesignCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
-        $class.Properties.Add("FullChargeCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
-        $class.Properties.Add("CycleCount", [System.Management.CimType]::UInt32, $false) | Out-Null
-        $class.Properties.Add("DesignActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Properties.Add("FullChargeActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
-        $class.Put()
+# Create WMI Namespace\Class at '$newWmiClassPath' 
+    Try { # Create WMI class if not exists
+        Write-Host "`n### Creating WMI Namespace\Class\Properties at '$newWmiClassPath'..."
+        $class = (Get-WmiObject -Namespace $namespaceParent -List | Where-Object {$_.Name -eq $newWmiClass})
+        if (!$class) {
+            $class = New-Object System.Management.ManagementClass("$namespaceParent", [string]::Empty, $null)
+            $class["__CLASS"] = $newWmiClass
+            $class.Qualifiers.Add("Static", $true) | Out-Null
+            $class.Properties.Add("ComputerName", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
+            $class.Properties.Add("SystemManufacturer", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("SystemProductName", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("DesignCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
+            $class.Properties.Add("FullChargeCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
+            $class.Properties.Add("CycleCount", [System.Management.CimType]::UInt32, $false) | Out-Null
+            $class.Properties.Add("DesignActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("FullChargeActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Put()
+        }
+    } Catch {
+        Write-Error "`n### Failed to create '$newWmiClassPath'"
+        Write-Error "$($_.Exception.Message)"
+        Stop-Transcript
+        Exit
     }
-} Catch {
-    Write-Host "`n### Failed to create '$($newWmiNamespacePath):$($newWmiClass)'" -ForegroundColor Red
-    Write-Error "Error: $($_.Exception.Message)"
-    Stop-Transcript
-    Exit
-}
 
-# Create an instance of the new BatteryInfo WMI class
+# Set values on '$newWmiClassPath' instances
     try {
-        Write-Host "`n### Inserting values for Namespace\Class\Properties at '$($newWmiNamespacePath):$($newWmiClass)'..."
+        Write-Host "`n### Inserting WMI property values at '$newWmiClassPath'..."
         $newInstance = $class.CreateInstance()
         # Assign Battery Info values from Battery Report values
         $newInstance.ComputerName = $computerName
@@ -189,20 +185,19 @@ Try { # Create WMI class if not exists
         $newInstance.FullChargeActiveRuntime = $fullChargeActiveRuntime
         # Save the instance
         $newInstance.Put()
-        Write-Host "### Inserted values WMI Namespace\Class\Properties at '$($newWmiNamespacePath):$($newWmiClass)'..."
     } catch {
-        Write-Host "`n### Failed to create 'root\cimv2\BatteryReport:BatteryInfo'" -ForegroundColor Red
-        Write-Error "Error: $($_.Exception.Message)"
+        Write-Error "`n### Failed to insert WMI property values"
+        Write-Error "$($_.Exception.Message)"
         Stop-Transcript
         Exit
-        }
+    }
 
 # Write Summary to Transcript
-    Write-Host "Script Version = $scriptVer"
+    Write-Host "`nScript Version = $scriptVer"
     (Get-PSCallStack).InvocationInfo.MyCommand.Name
-    Write-Host "`nNew Class: $newWmiNamespacePath "
+    Write-Host "`nNew Class: $newWmiClassPath "
     # Get instances of the new BatteryReport CIM class for logging
-    $logInstances = Get-CimInstance -Namespace $newWmiNamespacePath -ClassName $newWmiClass
+    $logInstances = Get-CimInstance -Namespace $namespaceParent -ClassName $newWmiClass
     # Define a list of properties to display
     $propertiesToDisplay = @(
         'ComputerName',
@@ -222,8 +217,8 @@ Try { # Create WMI class if not exists
             ForEach-Object {
                 Write-Host "    $($_.Name): $($_.Value)"
             }
-            Write-Host "" # Empty line for transcript readability
+         Write-Host "" # Empty line for transcript readability
     }
 
 # Terminate Logging
-Stop-Transcript
+    Stop-Transcript
