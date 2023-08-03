@@ -12,7 +12,7 @@
    This example shows how to run the script.
 .NOTES
     NOTE: As this script is complex and handles many operations, thoroughly test it in a safe environment before using it in a production scenario.
-    Version: 4.0
+    Version: 4.1
     Last Updated: 2023-08-02
     Copyright (c) 2023 https://github.com/bentman
     https://github.com/bentman/PoSH-BatteryReportCollection
@@ -21,12 +21,13 @@
    Version 2.0: Corrected errors collected in feedback & added better logging.
    Version 3.0: Corrected 'function Remove-WmiNamespaceClass' + logging
    Version 4.0: Verified w10 + Error Handling
+        4.1: Add additional battery details
 .LINK
     https://docs.microsoft.com/powershell
 #>
 ############################## VARIABLES ###############################
 # Script Version
-$scriptVer = "4.0"
+$scriptVer = "4.1"
 # Local hard drive location for processing
 $reportFolder = "C:\temp"
 # Name to assign WMI Namespace 
@@ -131,6 +132,13 @@ function ConvertTo-StandardTimeFormat {
     $computerName = $batteryReport.BatteryReport.SystemInformation.ComputerName
     $systemManufacturer = $batteryReport.BatteryReport.SystemInformation.SystemManufacturer
     $systemProductName = $batteryReport.BatteryReport.SystemInformation.SystemProductName
+    $batteryId = $batteryReport.BatteryReport.Batteries.Battery.Id
+    $manufacturer = $batteryReport.BatteryReport.Batteries.Battery.Manufacturer
+    $serialNumber = $batteryReport.BatteryReport.Batteries.Battery.SerialNumber
+    $manufactureDate = $batteryReport.BatteryReport.Batteries.Battery.ManufactureDate
+    $chemistry = $batteryReport.BatteryReport.Batteries.Battery.Chemistry
+    $longTerm = $batteryReport.BatteryReport.Batteries.Battery.LongTerm
+    $relativeCapacity = $batteryReport.BatteryReport.Batteries.Battery.RelativeCapacity
     $designCapacity = [uint64]$batteryReport.BatteryReport.Batteries.Battery.DesignCapacity
     $fullChargeCapacity = [uint64]$batteryReport.BatteryReport.Batteries.Battery.FullChargeCapacity
     $cycleCount = [uint32]$batteryReport.BatteryReport.Batteries.Battery.CycleCount
@@ -156,6 +164,13 @@ function ConvertTo-StandardTimeFormat {
             $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
             $class.Properties.Add("SystemManufacturer", [System.Management.CimType]::String, $false) | Out-Null
             $class.Properties.Add("SystemProductName", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("batteryId", [System.Management.CimType]::String, $false) | Out-Null)
+            $class.Properties.Add("manufacturer", [System.Management.CimType]::String, $false) | Out-Null)
+            $class.Properties.Add("serialNumber", [System.Management.CimType]::String, $false) | Out-Null)
+            $class.Properties.Add("manufactureDate", [System.Management.CimType]::String, $false) | Out-Null)
+            $class.Properties.Add("chemistry", [System.Management.CimType]::String, $false) | Out-Null)
+            $class.Properties.Add("longTerm", [System.Management.CimType]::String, $false) | Out-Null)
+            $class.Properties.Add("relativeCapacity", [System.Management.CimType]::String, $false) | Out-Null)
             $class.Properties.Add("DesignCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
             $class.Properties.Add("FullChargeCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
             $class.Properties.Add("CycleCount", [System.Management.CimType]::UInt32, $false) | Out-Null
@@ -178,6 +193,13 @@ function ConvertTo-StandardTimeFormat {
         $newInstance.ComputerName = $computerName
         $newInstance.SystemManufacturer = $systemManufacturer
         $newInstance.SystemProductName = $systemProductName
+        $newInstance.batteryId = $batteryId
+        $newInstance.manufacturer = $manufacturer
+        $newInstance.serialNumber = $serialNumber
+        $newInstance.manufactureDate = $manufactureDate
+        $newInstance.chemistry = $chemistry
+        $newInstance.longTerm = $longTerm
+        $newInstance.relativeCapacity = $relativeCapacity
         $newInstance.DesignCapacity = $designCapacity
         $newInstance.FullChargeCapacity = $fullChargeCapacity
         $newInstance.CycleCount = $cycleCount
@@ -203,6 +225,13 @@ function ConvertTo-StandardTimeFormat {
         'ComputerName',
         'SystemManufacturer',
         'SystemProductName',
+        'BatteryId',
+        'Manufacturer',
+        'SerialNumber',
+        'ManufactureDate',
+        'Chemistry',
+        'LongTerm',
+        'RelativeCapacity',
         'DesignCapacity',
         'FullChargeCapacity',
         'CycleCount',

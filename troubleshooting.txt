@@ -1,0 +1,91 @@
+############################## VARIABLES ###############################
+# Script Version
+$scriptVer = "3.0"
+# Local hard drive location for processing
+$reportFolder = "C:\temp"
+# Name to assign WMI Namespace 
+$newWmiNamespace = "BatteryReport"
+# Name to assign WMI Namespace Class
+$newWmiClass = "BatteryInfo"
+# WMI Parent designation (recommended for SCCM) 
+$namespaceParent = "root\cimv2"
+
+############################### GENERATED ###############################
+# Subfolder created on Local hard drive location for processing and transcript log
+$reportFolderPath = Join-Path $reportFolder "$newWmiNamespace"
+# XML Battery Report for parsing
+$reportPathXml = Join-Path $reportFolderPath "$newWmiNamespace.xml"
+# HTML Battery Report for human readability
+$reportPathHtml = Join-Path $reportFolderPath "$newWmiNamespace.html"
+# Script transcript for logging
+$transcriptPath = Join-Path $reportFolderPath "$($newWmiNamespace)-Transcript.log"
+# WMI Namespace path for operations (root\cimv2\BatteryReport)
+$newWmiNamespacePath = "$namespaceParent\$newWmiNamespace"
+
+############################### FUNCTION  ###############################
+function Remove-WmiNamespaceClass { # Remove previous WMI Parent\Namespace:Class if exist 
+    [CmdletBinding()] param(
+        [Parameter(Mandatory=$true)][string] $oldWmiNamespace,
+        [Parameter(Mandatory=$true)][string] $oldWmiClass
+    )
+    try {
+        $existingBatteryReport = (Get-WmiObject -Namespace $oldWmiNamespace -List | Where-Object {$_.Name -eq $oldWmiClass})
+        if (Get-WmiObject -Namespace $oldWmiNamespace -List | Where-Object {$_.Name -eq $oldWmiClass}) {
+            Write-Warning "`n### Existing $existingBatteryReport will be removed before adding new."
+            Remove-WmiObject -Namespace $oldWmiNamespace -Class $oldWmiClass -Verbose
+        }
+    } catch {
+        Write-Error "### ERROR: Removing WMI namespace" -ForegroundColor Green
+        Write-Error "Error: $($_.Exception.Message)"
+    }
+}
+
+function Add-WmiNamespaceClass { # Create WMI class if not exists
+    [CmdletBinding()] param(
+        [Parameter(Mandatory=$true)][string] $addWmiNamespacePath,
+        [Parameter(Mandatory=$true)][string] $addWmiClass
+    )
+    try {
+    Write-Host "`n### Creating WMI Namespace\Class\Properties at '$($addWmiNamespacePath):$($addWmiClass)'..."
+    $class = (Get-WmiObject -Namespace $addWmiNamespacePath -List | Where-Object {$_.Name -eq $addWmiClass})
+        if (!$class) {
+            $class = New-Object System.Management.ManagementClass("$addWmiNamespacePath", [string]::Empty, $null)
+            $class["__CLASS"] = $addWmiClass
+            $class.Qualifiers.Add("Static", $true) | Out-Null
+            $class.Properties.Add("ComputerName", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
+            $class.Properties.Add("SystemManufacturer", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("SystemProductName", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Put()
+        }
+    } catch {
+        Write-Host "### ERROR: Creating WMI namespace" -ForegroundColor Green
+        Write-Error "Error: $($_.Exception.Message)"
+    }
+}
+
+############################### EXECUTION ###############################
+
+# Remove erroneous WMI 'root\cimv2\BatteryReport:BatteryReport' if not exist
+    Add-WmiNamespaceClass -addWmiNamespace $newWmiNamespacePath -addWmiClass $newWmiNamespace # BatteryReport (old)
+
+# Remove erroneous WMI 'root\cimv2\BatteryReport:BatteryReport' if exist
+    Remove-WmiNamespaceClass -oldWmiNamespace $newWmiNamespacePath -oldWmiClass $newWmiNamespace # BatteryReport (old)
+
+Get-WmiObject -Namespace $newWmiNamespacePath -List | Where-Object {$_.Name -eq $newWmiNamespace} # BatteryReport (old)
+Get-WmiObject -Namespace $newWmiNamespacePath -Class $newWmiNamespace
+$existingBatteryReport = (Get-WmiObject -Namespace $newWmiNamespacePath -List | Where-Object {$_.Name -eq $newWmiNamespace})
+if (Get-WmiObject -Namespace $newWmiNamespacePath -List | Where-Object {$_.Name -eq $newWmiNamespace}) {
+    Write-Host "`n### Existing $($newWmiNamespacePath):$($newWmiNamespace) info was found."
+    Write-Host "`n$existingBatteryReport"
+    Write-Warning "`n### $newWmiNamespacePath will be removed before creating new."
+    Remove-WmiObject -Namespace $newWmiNamespacePath -Class $newWmiNamespace -Verbose
+}
+
+# Remove previous WMI 'root\cimv2\BatteryReport:BatteryInfo' if not exist
+    Add-WmiNamespaceClass -addWmiNamespace $newWmiNamespacePath -addWmiClass $newWmiClass
+
+# Remove previous WMI 'root\cimv2\BatteryReport:BatteryInfo' if exist
+    Remove-WmiNamespaceClass -oldWmiNamespace $newWmiNamespacePath -oldWmiClass $newWmiClass
+
+Get-WmiObject -Namespace $newWmiNamespacePath -List | Where-Object {$_.Name -eq $newWmiClass}
