@@ -164,13 +164,13 @@ function ConvertTo-StandardTimeFormat {
             $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
             $class.Properties.Add("SystemManufacturer", [System.Management.CimType]::String, $false) | Out-Null
             $class.Properties.Add("SystemProductName", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("batteryId", [System.Management.CimType]::String, $false) | Out-Null)
-            $class.Properties.Add("manufacturer", [System.Management.CimType]::String, $false) | Out-Null)
-            $class.Properties.Add("serialNumber", [System.Management.CimType]::String, $false) | Out-Null)
-            $class.Properties.Add("manufactureDate", [System.Management.CimType]::String, $false) | Out-Null)
-            $class.Properties.Add("chemistry", [System.Management.CimType]::String, $false) | Out-Null)
-            $class.Properties.Add("longTerm", [System.Management.CimType]::String, $false) | Out-Null)
-            $class.Properties.Add("relativeCapacity", [System.Management.CimType]::String, $false) | Out-Null)
+            $class.Properties.Add("batteryId", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("manufacturer", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("serialNumber", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("manufactureDate", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("chemistry", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("longTerm", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("relativeCapacity", [System.Management.CimType]::String, $false) | Out-Null
             $class.Properties.Add("DesignCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
             $class.Properties.Add("FullChargeCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
             $class.Properties.Add("CycleCount", [System.Management.CimType]::UInt32, $false) | Out-Null
