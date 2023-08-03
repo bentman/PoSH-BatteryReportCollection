@@ -137,8 +137,8 @@ function ConvertTo-StandardTimeFormat {
     $serialNumber = $batteryReport.BatteryReport.Batteries.Battery.SerialNumber
     $manufactureDate = $batteryReport.BatteryReport.Batteries.Battery.ManufactureDate
     $chemistry = $batteryReport.BatteryReport.Batteries.Battery.Chemistry
-    $longTerm = $batteryReport.BatteryReport.Batteries.Battery.LongTerm
-    $relativeCapacity = $batteryReport.BatteryReport.Batteries.Battery.RelativeCapacity
+    $longTerm = [float]$batteryReport.BatteryReport.Batteries.Battery.LongTerm
+    $relativeCapacity = [float]$batteryReport.BatteryReport.Batteries.Battery.RelativeCapacity
     $designCapacity = [uint64]$batteryReport.BatteryReport.Batteries.Battery.DesignCapacity
     $fullChargeCapacity = [uint64]$batteryReport.BatteryReport.Batteries.Battery.FullChargeCapacity
     $cycleCount = [uint32]$batteryReport.BatteryReport.Batteries.Battery.CycleCount
@@ -164,21 +164,21 @@ function ConvertTo-StandardTimeFormat {
             $class.Properties["ComputerName"].Qualifiers.Add("key", $true) | Out-Null
             $class.Properties.Add("SystemManufacturer", [System.Management.CimType]::String, $false) | Out-Null
             $class.Properties.Add("SystemProductName", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("batteryId", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("manufacturer", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("serialNumber", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("manufactureDate", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("chemistry", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("longTerm", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("relativeCapacity", [System.Management.CimType]::String, $false) | Out-Null
-            $class.Properties.Add("DesignCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
-            $class.Properties.Add("FullChargeCapacity", [System.Management.CimType]::UInt32, $false) | Out-Null
+            $class.Properties.Add("BatteryId", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("Manufacturer", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("SerialNumber", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("ManufactureDate", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("Chemistry", [System.Management.CimType]::String, $false) | Out-Null
+            $class.Properties.Add("LongTerm", [System.Management.CimType]::Real64, $false) | Out-Null
+            $class.Properties.Add("RelativeCapacity", [System.Management.CimType]::Real64, $false) | Out-Null
+            $class.Properties.Add("DesignCapacity", [System.Management.CimType]::UInt64, $false) | Out-Null
+            $class.Properties.Add("FullChargeCapacity", [System.Management.CimType]::UInt64, $false) | Out-Null
             $class.Properties.Add("CycleCount", [System.Management.CimType]::UInt32, $false) | Out-Null
             $class.Properties.Add("DesignActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
             $class.Properties.Add("FullChargeActiveRuntime", [System.Management.CimType]::String, $false) | Out-Null
             $class.Put()
         }
-    } Catch {
+            } Catch {
         Write-Error "`n### Failed to create '$newWmiClassPath'"
         Write-Error "$($_.Exception.Message)"
         Stop-Transcript
@@ -193,13 +193,13 @@ function ConvertTo-StandardTimeFormat {
         $newInstance.ComputerName = $computerName
         $newInstance.SystemManufacturer = $systemManufacturer
         $newInstance.SystemProductName = $systemProductName
-        $newInstance.batteryId = $batteryId
-        $newInstance.manufacturer = $manufacturer
-        $newInstance.serialNumber = $serialNumber
-        $newInstance.manufactureDate = $manufactureDate
-        $newInstance.chemistry = $chemistry
-        $newInstance.longTerm = $longTerm
-        $newInstance.relativeCapacity = $relativeCapacity
+        $newInstance.BatteryId = $batteryId
+        $newInstance.Manufacturer = $manufacturer
+        $newInstance.SerialNumber = $serialNumber
+        $newInstance.ManufactureDate = $manufactureDate
+        $newInstance.Chemistry = $chemistry
+        $newInstance.LongTerm = $longTerm
+        $newInstance.RelativeCapacity = $relativeCapacity
         $newInstance.DesignCapacity = $designCapacity
         $newInstance.FullChargeCapacity = $fullChargeCapacity
         $newInstance.CycleCount = $cycleCount
